@@ -13,10 +13,16 @@ axios.defaults.headers.common['Authorization'] = 'Bearer ' + authStore.authToken
 onMounted(() => { getMarcas(), getTenis(1) });
 const marcas = ref([]);
 const tenis = ref([]);
-
 const load = ref(false);
 const rows = ref(0);
-const form = ref({ color: '', talla: '', costo: 0.00, marca_id: '', categoria: '' });
+const form = ref({
+  color: '',
+  talla: '',
+  costo: 0.00,
+  marca_id: '',
+  categoria: '',
+  imagen: ''
+});
 
 const title = ref('');
 const marcaInput = ref('');
@@ -25,76 +31,90 @@ const id = ref('');
 const close = ref([]);
 
 const getMarcas = async () => {
-    await axios.get('/api/marcas').then(
-        response => (marcas.value = response.data)
-    );
+  await axios.get('/api/marcas').then(
+    response => (marcas.value = response.data)
+  );
 };
 
 const getTenis = async (page) => {
-    await axios.get('/api/tenis?page='+page).then(
-        response => (
-            tenis.value = response.data,
-            rows.value = response.data.last_page
-        )
-    );
-    load.value = true;
+  await axios.get('/api/tenis?page=' + page).then(
+    response => (
+      tenis.value = response.data,
+      rows.value = response.data.last_page
+    )
+  );
+  load.value = true;
+};
+
+const onFileChange = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    form.value.imagen = file;
+  }
 };
 
 const deleteTenis = (id, marca) => {
-    confirmation(marca, ('/api/tenis/' + id), '/tenis');
+  confirmation(marca, ('/api/tenis/' + id), '/tenis');
 };
 
-const openModal = (op, color, talla, costo, marca, categoria, teni) => {
-    clear();
-    setTimeout(() => nextTick(() => marcaInput.value.focus()), 600);
-    operation.value = op;
-    id.value = teni;
-    if (op == 1) {
-        title.value = 'Create tenis';
-    } else {
-        title.value = 'Edit tenis';
-        form.value.color = color;
-        form.value.talla = talla;
-        form.value.costo = costo;
-        form.value.marca_id = marca;
-        form.value.categoria = categoria;
-    }
+const openModal = (op, color, talla, costo, marca, categoria, imagen, teni) => {
+  clear();
+  setTimeout(() => nextTick(() => marcaInput.value.focus()), 600);
+  operation.value = op;
+  id.value = teni;
+  if (op == 1) {
+    title.value = 'Create tenis';
+  } else {
+    title.value = 'Edit tenis';
+    form.value.color = color;
+    form.value.talla = talla;
+    form.value.costo = costo;
+    form.value.marca_id = marca;
+    form.value.categoria = categoria;
+    form.value.imagen = imagen;
+  }
 };
 
 const clear = () => {
-    form.value.color = '';
-    form.value.talla = '';
-    form.value.costo = '';
-    form.value.marca_id = '';
-    form.value.categoria = '';
+  form.value.color = '';
+  form.value.talla = '';
+  form.value.costo = '';
+  form.value.marca_id = '';
+  form.value.categoria = '';
+  form.value.imagen = '';
 };
 
 const save = async () => {
-    const formData = {
-        color: form.value.color,
-        talla: form.value.talla,
-        costo: form.value.costo,
-        marca_id: form.value.marca_id,
-        categoria: form.value.categoria,
-    };
+  let formData = new FormData();
+  formData.append('color', form.value.color);
+  formData.append('talla', form.value.talla);
+  formData.append('costo', form.value.costo);
+  formData.append('marca_id', form.value.marca_id);
+  formData.append('categoria', form.value.categoria);
+  
+  if (form.value.imagen instanceof File) {
+    formData.append('imagen', form.value.imagen);
+  }
 
-    let res;
-    if (operation.value == 1) {
-        res = await sendRequest('POST', formData, 'api/tenis', '');
-        if (res === true) {
-            clear();
-            nextTick(() => marcaInput.value.focus());
-            getTenis(1);
-        }
-    } else {
-        res = await sendRequest('PUT', formData, ('api/tenis/' + id.value), '');
-        if (res === true) {
-            nextTick(() => close.value.click());
-            getTenis(1);
-        }       
-    }
+  if (operation.value !== 1) {
+    formData.append('_method', 'PUT');
+  }
+
+  let res;
+  if (operation.value === 1) {
+    res = await sendRequest('POST', formData, '/api/tenis', '', true);
+  } else {
+    res = await sendRequest('POST', formData, `/api/tenis/${id.value}`, '', true);
+  }
+
+  if (res) {
+    clear();
+    nextTick(() => marcaInput.value.focus());
+    getTenis(1);
+  }
 };
 </script>
+
 
 
 <template>
@@ -137,7 +157,14 @@ const save = async () => {
                             <td>{{ ten.marca }}</td>
                             <td>{{ ten.categoria }}</td>
                             <td>
-                                <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modal" @click="$event => openModal(2, ten.color, ten.talla, ten.costo, ten.marca_id, ten.categoria, ten.id)">
+                                
+                              <img :src="`http://ten.jaredmz.istigen23.com/${ten.imagen}`" height="80px"> 
+
+                            </td>
+
+                            <td>
+                                <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modal" @click="$event => openModal(2, ten.color, ten.talla, ten.costo, ten.marca_id, ten.categoria, ten.imagen, ten.id)"
+                                    >
                                     <i class="fa-solid fa-edit"></i>                                
                                 </button>
                             </td>
@@ -163,8 +190,7 @@ const save = async () => {
     <input type="file" @change="handleFileUpload" class="form-control" accept="image/*">
   </div>
   <!-- ... rest of the form ... -->
-</template>
-                
+</template> 
             </div>
         </div>
     </div>
@@ -201,9 +227,14 @@ const save = async () => {
                 </span>
                 <input type="text" v-model="form.categoria" placeholder="Categoría" class="form-control" required>
             </div>
+            <div class="input-group mb-3">
+                <span class="input-group-text">
+                    <i class="fa-solid fa-image"></i>
+                </span>
+                <input type="file" @change="onFileChange" class="form-control" accept="image/*" />
+                </div>
             <button type="submit" class="btn btn-primary">Guardar</button>
         </form>
     </div>
 </Modal>
-
 </template>
